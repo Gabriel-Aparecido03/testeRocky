@@ -1,10 +1,6 @@
 const fs = require('fs')
-const {promisify} = require('util')
+const fsPromises = fs.promises
 
-const readFilePromise = promisify(fs.readFile)
-const writeFilePromise = promisify(fs.writeFile)
-
-var adjustedJson
 var dataJson
 
 // node js documentation 
@@ -20,7 +16,6 @@ fs.readFile('./broken-database.json',(err,dataString)=>{
         fixedName()
         fixedPrice()
         fixedQuantity()
-        organizerObjs()
     }
 })
 
@@ -85,61 +80,63 @@ function fixedQuantity() {
         const stringDataJson = JSON.stringify(dataJson,null,2)
         // https://www.geeksforgeeks.org/node-js-fs-stat-method/
         if(stats) {
-            writeFilePromise('saida.json',stringDataJson,(err)=>{
-                if(err){
-                    console.log(err)
-                }
-            })
+            console.log('The file saida.json is already exist,so will be rewrite')
         }
-        else {
-            const stringDataJson = JSON.stringify(dataJson,null,2)
-            writeFilePromise('saida.json',stringDataJson,(err)=>{
-                if(err){
-                    console.log(err)
-                }
-            })
-        }
+        fs.writeFile('./saida.json',stringDataJson,(err)=>{
+            if(err) {
+                console.log(err)
+            }
+            else {
+                organizerObjs()
+                calculateTotalPrice()
+            }
+        })
     });
 }
 
 async function organizerObjs(){ // https://developer.mozilla.org/pt-BR/docs/Web/JavaScript/Reference/Global_Objects/Array/sort
-    adjustedJson = await readFilePromise('./saida.json',(err)=>{}); // https://www.geeksforgeeks.org/node-js-fs-readfilesync-method/
-    if(adjustedJson === 'undefined') {
-        return console.log('The file was not finded')
+// https://stackoverflow.com/questions/40593875/using-filesystem-in-node-js-with-async-await
+    let file
+    try {
+        fs.readFile('./saida.json',(err,fileDataString)=>{
+            if(err) {
+                console.log(err)
+            }
+            else {
+                file = JSON.parse(fileDataString)
+                file.sort((a,b)=>{
+                    const categoryA = a.category
+                    const categoryB = b.category 
+
+                    const idA = a.id
+                    const idB = b.id
+
+                    if(categoryA > categoryB) {
+                        return 1
+                    }
+                    else if(categoryB < categoryB) {
+                        return -1
+                    }
+                    else {
+                        if(idA > idB) {
+                            return 1
+                        }
+                        else if(idA < idB) {
+                            return -1
+                        }
+                    }
+
+                })
+                const fileStringify = JSON.stringify(file,null,2) // https://developer.mozilla.org/pt-BR/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
+                fs.writeFile('./saida.json',fileStringify,(err)=>{
+                    if(err) console.log(err)
+                })
+            }
+        })
     }
-
-    adjustedJson = await JSON.parse(adjustedJson)
-
-    adjustedJson.sort((a,b)=>{
-        const categoryA = a.category
-        const categoryB = b.category
-
-        const idA = a.id
-        const idB = a.id
-
-        if(categoryA > categoryB) {
-            return 1
-        }
-
-        else if(categoryA < categoryB) {
-            return -1 
-        }
-
-        else {
-            if(idA > idB) {
-                return 1
-            }
-            if(idA < idB) {
-                return -1
-            }
-        }
-    })
-    fs.writeFile("saida.json", JSON.stringify(adjustedJson,null,2), 'utf8', function (err) {
-        if (err) {
-            console.log("An error occured while writing JSON Object to File.");
-            return console.log(err);
-        }
-    })
+    catch {
+        console.log(err)
+    }
 }
 
 
@@ -148,25 +145,32 @@ function calculateTotalPrice() {
     var priceAcessories = priceElectronics = priceHomeAppliences = pricePan = 0
    // preco dos accesorios = preco do Eletronicos = precos eletrodomesticos = preco das panelas
 
-    for(var element in adjustedJson) {
-        const priceElement = adjustedJson[element].price
-        const categoryElement = adjustedJson[element].category
+    fs.readFile('./saida.json',(err,dataFile)=>{
+        if(err) console.log(err)
+        else {
+            file = JSON.parse(dataFile)
 
-        switch(categoryElement) {
-            case 'Acessórios':
-                priceAcessories+=priceElement
-                break
-            case 'Eletrodomésticos':
-                priceHomeAppliences+=priceElement
-                break
-            case 'Eletrônicos':
-                priceElectronics+=priceElement
-                break
-            case 'Panelas' :
-                pricePan +=priceElement
-                break
-            default :
-                console.log('There is nothing category to correspind with this product')
+            for(var element in file) {
+                const priceElement = file[element].price
+                const categoryElement = file[element].category
+        
+                switch(categoryElement) {
+                    case 'Acessórios':
+                        priceAcessories+=priceElement
+                        break
+                    case 'Eletrodomésticos':
+                        priceHomeAppliences+=priceElement
+                        break
+                    case 'Eletrônicos':
+                        priceElectronics+=priceElement
+                        break
+                    case 'Panelas' :
+                        pricePan +=priceElement
+                        break
+                    default :
+                        console.log('There is nothing category to correspind with this product')
+                }
+            }
         }
-    }
+    })
 }
